@@ -1,0 +1,159 @@
+// OneHealth demo backend — schema mirrors the entity plan discussed for the
+// Base44 migration. Simplified for a stakeholder-demo build: no audit-log
+// table yet, no soft-deletes, no multi-tenant facility isolation beyond a
+// plain facilityId column. Flag these as "hardening TODOs" before any real
+// patient data goes near this.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite has no native enum type in Prisma, so role/archetype are plain
+// strings here, validated app-side (see zod schemas in src/routes/auth.js).
+// Values in use: role = "medical" | "governing";
+// archetype = "clinical" | "clinical_support" | "administrative" | "oversight" | "records_intake"
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  fullName     String
+  title        String?   // display job title, e.g. "Staff Nurse", "Records & Intake Officer"
+  role         String
+  archetype    String?
+  facilityId   String?
+  facility     Facility? @relation(fields: [facilityId], references: [id])
+  createdAt    DateTime  @default(now())
+
+  encounters   Encounter[]
+}
+
+model Facility {
+  id        String   @id @default(uuid())
+  name      String
+  type      String   // "hospital" | "brgy_health_station" | "clinic"
+  address   String?
+  createdAt DateTime @default(now())
+
+  users        User[]
+  patients     Patient[]
+  rooms        Room[]
+  appointments Appointment[]
+  encounters   Encounter[]
+}
+
+model Patient {
+  id             String   @id @default(uuid())
+  firstName      String
+  lastName       String
+  age            Int
+  sex            String
+  philhealthNo   String?  @unique
+  street         String?
+  purok          String?
+  brgy           String?
+  municipality   String?
+  province       String?
+  homeFacilityId String?
+  homeFacility   Facility? @relation(fields: [homeFacilityId], references: [id])
+  createdAt      DateTime  @default(now())
+
+  emergencySummary EmergencySummary?
+  encounters       Encounter[]
+  appointments     Appointment[]
+  referralsFrom    Referral[] @relation("referralsFrom")
+  intakeDocuments  IntakeDocument[]
+}
+
+// Always readable cross-facility — no referral/consent gate required.
+model EmergencySummary {
+  id                 String   @id @default(uuid())
+  patientId          String   @unique
+  patient            Patient  @relation(fields: [patientId], references: [id])
+  bloodType          String?
+  allergies          Json     @default("[]")
+  chronicConditions  Json     @default("[]")
+  currentMedications Json     @default("[]")
+  updatedAt          DateTime @updatedAt
+}
+
+model Encounter {
+  id           String    @id @default(uuid())
+  patientId    String
+  patient      Patient   @relation(fields: [patientId], references: [id])
+  facilityId   String
+  facility     Facility  @relation(fields: [facilityId], references: [id])
+  physicianId  String
+  physician    User      @relation(fields: [physicianId], references: [id])
+  status       String    @default("checked-in") // checked-in | in-consultation | closed
+  diagnoses    Json      @default("[]")
+  medications  Json      @default("[]")
+  notes        String?
+  startedAt    DateTime?
+  closedAt     DateTime?
+  createdAt    DateTime  @default(now())
+
+  roomAssignment Room?
+  appointment    Appointment?
+}
+
+model Appointment {
+  id            String    @id @default(uuid())
+  patientId     String
+  patient       Patient   @relation(fields: [patientId], references: [id])
+  facilityId    String
+  facility      Facility  @relation(fields: [facilityId], references: [id])
+  encounterId   String?   @unique
+  encounter     Encounter? @relation(fields: [encounterId], references: [id])
+  assignedNurseId     String?  // set by Records/Intake staff at check-in
+  assignedPhysicianId String?  // set by Records/Intake staff at check-in
+  scheduledTime DateTime
+  type          String
+  status        String    @default("scheduled") // scheduled|checked-in|at-risk|seen|no-show|rolled-over
+  createdAt     DateTime  @default(now())
+}
+
+model Room {
+  id                String    @id @default(uuid())
+  facilityId        String
+  facility          Facility  @relation(fields: [facilityId], references: [id])
+  label             String    // e.g. "Ward A - Bed 3"
+  roomType          String    // Private|Semi-private|Ward|ICU|NICU|PICU|Isolation|OR
+  status            String    @default("available") // available|reserved|occupied|cleaning
+  currentEncounterId String?  @unique
+  currentEncounter  Encounter? @relation(fields: [currentEncounterId], references: [id])
+}
+
+model Referral {
+  id               String   @id @default(uuid())
+  patientId        String
+  patient          Patient  @relation("referralsFrom", fields: [patientId], references: [id])
+  fromFacilityId   String
+  toFacilityId     String
+  reason           String
+  status           String   @default("pending") // pending|active|closed
+  consentGrantedAt DateTime?
+  createdAt        DateTime @default(now())
+}
+
+// Records/Intake staff digitize a hardcopy (scan/OCR text) and attach it here
+// as "pending" — it is NOT part of the official record until a nurse or
+// physician reviews and accepts it. This keeps clinical judgment with
+// clinical staff while letting non-clinical staff do the data-entry legwork.
+model IntakeDocument {
+  id             String    @id @default(uuid())
+  patientId      String
+  patient        Patient   @relation(fields: [patientId], references: [id])
+  uploadedById   String    // Records/Intake staff user id
+  sourceNote     String?   // e.g. "Paper chart from Iloilo Doctors Hospital, 2019"
+  ocrText        String?   // extracted/transcribed text, no file storage yet (see README)
+  status         String    @default("pending") // pending | accepted | rejected
+  reviewedById   String?   // clinical staff who reviewed it
+  reviewedAt     DateTime?
+  createdAt      DateTime  @default(now())
+}
