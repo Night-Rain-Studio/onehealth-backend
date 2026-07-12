@@ -71,14 +71,17 @@ model Patient {
 }
 
 // Always readable cross-facility — no referral/consent gate required.
+// Note: SQLite's Prisma connector does not support the Json type at all
+// (only Postgres/MySQL/MongoDB do) - these are JSON-stringified text,
+// encoded/decoded by the app (see src/routes/patients.js).
 model EmergencySummary {
   id                 String   @id @default(uuid())
   patientId          String   @unique
   patient            Patient  @relation(fields: [patientId], references: [id])
   bloodType          String?
-  allergies          Json     @default("[]")
-  chronicConditions  Json     @default("[]")
-  currentMedications Json     @default("[]")
+  allergies          String   @default("[]")
+  chronicConditions  String   @default("[]")
+  currentMedications String   @default("[]")
   updatedAt          DateTime @updatedAt
 }
 
@@ -91,8 +94,8 @@ model Encounter {
   physicianId  String
   physician    User      @relation(fields: [physicianId], references: [id])
   status       String    @default("checked-in") // checked-in | in-consultation | closed
-  diagnoses    Json      @default("[]")
-  medications  Json      @default("[]")
+  diagnoses    String    @default("[]")
+  medications  String    @default("[]")
   notes        String?
   startedAt    DateTime?
   closedAt     DateTime?

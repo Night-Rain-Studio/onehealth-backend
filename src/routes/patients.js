@@ -47,7 +47,12 @@ router.get('/', async (req, res) => {
 router.get('/:id/emergency-summary', async (req, res) => {
   const summary = await prisma.emergencySummary.findUnique({ where: { patientId: req.params.id } });
   if (!summary) return res.status(404).json({ error: 'No emergency summary on file' });
-  res.json(summary);
+  res.json({
+    ...summary,
+    allergies: JSON.parse(summary.allergies),
+    chronicConditions: JSON.parse(summary.chronicConditions),
+    currentMedications: JSON.parse(summary.currentMedications),
+  });
 });
 
 // Full clinical chart — gated behind an active referral to the requesting facility,
@@ -71,10 +76,15 @@ router.get('/:id/full-chart', async (req, res) => {
     }
   }
 
-  const encounters = await prisma.encounter.findMany({
+  const encountersRaw = await prisma.encounter.findMany({
     where: { patientId: patient.id },
     orderBy: { createdAt: 'desc' },
   });
+  const encounters = encountersRaw.map((e) => ({
+    ...e,
+    diagnoses: JSON.parse(e.diagnoses),
+    medications: JSON.parse(e.medications),
+  }));
 
   // TODO before production: write an audit-log row here (userId, patientId,
   // referralId, timestamp) every time this branch is hit for a non-home facility.

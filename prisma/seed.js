@@ -138,7 +138,16 @@ async function main() {
     { bloodType: 'A+', allergies: [], chronicConditions: ['UTI (treated)'], currentMedications: [] },
   ];
   for (let i = 0; i < patients.length; i++) {
-    await prisma.emergencySummary.create({ data: { patientId: patients[i].id, ...summaries[i] } });
+    const s = summaries[i];
+    await prisma.emergencySummary.create({
+      data: {
+        patientId: patients[i].id,
+        bloodType: s.bloodType,
+        allergies: JSON.stringify(s.allergies),
+        chronicConditions: JSON.stringify(s.chronicConditions),
+        currentMedications: JSON.stringify(s.currentMedications),
+      },
+    });
   }
 
   // Today's appointments, staggered through the morning/afternoon.
@@ -171,7 +180,7 @@ async function main() {
       status: 'closed',
       startedAt,
       closedAt,
-      diagnoses: ['UTI'],
+      diagnoses: JSON.stringify(['UTI']),
       notes: 'Follow-up, resolved.',
     },
   });
