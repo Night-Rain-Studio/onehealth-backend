@@ -196,6 +196,43 @@ async function main() {
     },
   });
 
+  // Billing data seeding
+  await prisma.billing.create({
+    data: {
+      patientId: patients[0].id,
+      facilityId: calinog.id,
+      invoiceNumber: 'INV-2026-001',
+      status: 'paid',
+      lineItems: JSON.stringify([
+        { description: 'Cardiac Consultation', amount: 500, category: 'Professional Fee' },
+        { description: 'ECG Test', amount: 1200, category: 'Procedure' },
+        { description: 'Blood Test Panel', amount: 800, category: 'Laboratory' }
+      ]),
+      totalAmount: 2500.0,
+      philHealthClaim: 1500.0,
+      patientPortion: 1000.0,
+      paidAt: new Date(),
+      notes: 'Paid via cash. Receipt issued.',
+    }
+  });
+
+  await prisma.billing.create({
+    data: {
+      patientId: patients[1].id,
+      facilityId: calinog.id,
+      invoiceNumber: 'INV-2026-002',
+      status: 'invoiced',
+      lineItems: JSON.stringify([
+        { description: 'General Consultation', amount: 300, category: 'Professional Fee' },
+        { description: 'Urinalysis', amount: 150, category: 'Laboratory' }
+      ]),
+      totalAmount: 450.0,
+      philHealthClaim: 0.0,
+      patientPortion: 450.0,
+      notes: 'Pending payment.',
+    }
+  });
+
   console.log('Done. All demo accounts use password: demo1234');
   console.log('  m.rosario@onehealth.demo     - Physician (clinical)');
   console.log('  l.ramos@onehealth.demo       - Staff Nurse (clinical)');

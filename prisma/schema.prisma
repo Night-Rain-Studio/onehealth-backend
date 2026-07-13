@@ -45,6 +45,7 @@ model Facility {
   rooms        Room[]
   appointments Appointment[]
   encounters   Encounter[]
+  billing      Billing[]
 }
 
 model Patient {
@@ -68,6 +69,7 @@ model Patient {
   appointments     Appointment[]
   referralsFrom    Referral[] @relation("referralsFrom")
   intakeDocuments  IntakeDocument[]
+  billing          Billing[]
 }
 
 // Always readable cross-facility — no referral/consent gate required.
@@ -103,6 +105,7 @@ model Encounter {
 
   roomAssignment Room?
   appointment    Appointment?
+  billing        Billing[]
 }
 
 model Appointment {
@@ -159,4 +162,23 @@ model IntakeDocument {
   reviewedById   String?   // clinical staff who reviewed it
   reviewedAt     DateTime?
   createdAt      DateTime  @default(now())
+}
+
+model Billing {
+  id              String    @id @default(uuid())
+  encounterId     String?
+  encounter       Encounter? @relation(fields: [encounterId], references: [id])
+  patientId       String
+  patient         Patient   @relation(fields: [patientId], references: [id])
+  facilityId      String
+  facility        Facility  @relation(fields: [facilityId], references: [id])
+  lineItems       String    @default("[]") // JSON string of line items
+  totalAmount     Float
+  philHealthClaim Float     @default(0)
+  patientPortion  Float
+  status          String    @default("unbilled") // unbilled | invoiced | partial | paid | void
+  invoiceNumber   String    @unique
+  paidAt          DateTime?
+  notes           String?
+  createdAt       DateTime  @default(now())
 }

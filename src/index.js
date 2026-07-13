@@ -9,6 +9,7 @@ import appointmentRoutes from './routes/appointments.js';
 import roomRoutes from './routes/rooms.js';
 import referralRoutes from './routes/referrals.js';
 import intakeDocumentRoutes from './routes/intakeDocuments.js';
+import billingRoutes from './routes/billing.js';
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/intake-documents', intakeDocumentRoutes);
+app.use('/api/billing', billingRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err);
