@@ -49,8 +49,8 @@ router.post('/login', async (req, res) => {
 
   res.cookie('token', token, {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'none',
+    secure: true,
     maxAge: 8 * 60 * 60 * 1000,
   });
 
@@ -58,9 +58,14 @@ router.post('/login', async (req, res) => {
 });
 
 router.post('/logout', (req, res) => {
-  res.clearCookie('token');
-  res.json({ ok: true });
-});
+  res.clearCookie('token', {
+    httpOnly: true,
+    sameSite: 'none',
+    secure: true,
+  });
+
+    res.json({ ok: true });
+  });
 
 router.get('/me', requireAuth, async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.user.sub } });
